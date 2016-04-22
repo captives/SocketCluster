@@ -26,6 +26,10 @@ module.exports.run = function(worker) {
             scServer.exchange.publish('sample', count);
         });
 
+        socket.on('chat', function (data) {
+            console.log('chant',JSON.stringify(data));
+            scServer.exchange.publish(data.name, data.text);
+        });
 
         socket.on('raw', function (data) {
             console.log('------ socket # raw -------',data);

@@ -4,22 +4,62 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1″ user-scalable=no">
     <title>SocketCluster Client</title>
-    <link rel="stylesheet" href="http://bootswatch.com/flatly/bootstrap.min.css"/>
-    <script src="https://cdn.bootcss.com/jquery/1.11.3/jquery.min.js"></script>
-    <script src="https://cdn.bootcss.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="css/bootstrap.min.css"/>
+    <style>
+        h2,h3{
+            color: #FFFFFF;
+        }
+    </style>
+    <script src="js/jquery.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
     <script type="text/javascript" src="js/socketcluster.js"></script>
 </head>
 <body>
-<div class="header">
-    <h1>SocketCluster <h3><span id="sp1"></span> <span id="sp2"></span></h3></h1>
-</div>
-<div class="content">
-    <div id="msgList" style="width: 300px;height: 80%;">
-        <ol></ol>
+<nav class="navbar navbar-default">
+    <div class="container-fluid">
+        <div class="navbar-header">
+            <h2>SocketCluster </h2>
+        </div>
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <li><h3><span id="sp1"></span></h3></li>
+                <li><h3><span id="sp2"></span></h3></li>
+            </ul>
+        </div>
     </div>
-    <input type="text" style="width: 300px; height: 30px;font-size: 20px">
-    <button id="testBtn" type="button">测试订阅</button>
-    <button id="closeBtn" type="button">断开连接</button>
+
+</nav>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-4 form-group has-error">
+            <label class="control-label"  for="inputError">订阅通道</label>
+            <input class="form-control"  type="text" id="inputError">
+        </div>
+
+        <div class="col-md-6 form-group has-warning">
+            <label class="control-label"  for="inputWarning">消息</label>
+            <input class="form-control"  type="text" id="inputWarning">
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <a id="addBtn" href="#" class="btn btn-danger">添加订阅</a>
+            <a id="chatBtn" href="#" class="btn btn-success">发送消息</a>
+            <a id="testBtn" href="#" class="btn btn-info">测试订阅</a>
+            <a id="closeBtn" href="#" class="btn btn-warning">断开连接</a>
+        </div>
+     </div>
+
+    <div class="panel panel-info">
+        <div class="panel-heading">
+            <h3 class="panel-title">Message</h3>
+        </div>
+        <div id="msgList" class="panel-body">
+                <ol></ol>
+        </div>
+    </div>
 </div>
 
 <script type="text/javascript">
@@ -132,16 +172,6 @@
             console.log(' --------- UNCONNECTED  -----------');
         });
 
-        var sampleChannel = socket.subscribe('sample');
-        sampleChannel.on('subscribeFail', function (err) {
-            console.log('Failed to subscribe to the sample channel due to error: ' + err);
-        });
-
-        sampleChannel.watch(function (num) {
-            addMessage(num);
-            console.log('Sample channel message:', num);
-        });
-
         /*********************************************
          *
          * 自定义事件监听
@@ -157,6 +187,25 @@
 
         socket.on("success", function (data) {
             document.querySelector("#sp2").innerText = "进程ID:" + data.pid;
+        });
+    };
+
+    document.querySelector("#addBtn").onclick = function (e) {
+        var sampleChannel = socket.subscribe(document.querySelector("#inputError").value);
+        sampleChannel.on('subscribeFail', function (err) {
+            console.log('Failed to subscribe to the sample channel due to error: ' + err);
+        });
+
+        sampleChannel.watch(function (num) {
+            addMessage(num);
+            console.log('Sample channel message:', num);
+        });
+    };
+
+    document.querySelector("#chatBtn").onclick = function (e) {
+        socket.emit("chat",{
+            name:document.querySelector("#inputError").value,
+            text:document.querySelector("#inputWarning").value
         });
     };
 
