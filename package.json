@@ -1,0 +1,24 @@
+{
+  "name": "socketcluster-demo",
+  "version": "1.0.0",
+  "description": "socketcluster demo",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "socketcluster",
+    "websocket"
+  ],
+  "author": "zhaoshuyang@live.cn",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.13.4",
+    "minimist": "^1.2.0",
+    "serve-static": "^1.10.2",
+    "socketcluster": "^4.3.5",
+    "socketcluster-client": "^4.3.14",
+    "socketcluster-server": "^4.1.12"
+  }
+}

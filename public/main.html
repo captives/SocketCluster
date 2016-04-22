@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Socket Cluster</title>
+    <script type="text/javascript" src="js/socketcluster.js"></script>
+</head>
+<body>
+<script type="text/javascript">
+    // Initiate the connection to the server
+    var socket = socketCluster.connect();
+    socket.on('error', function (err) {
+        throw 'Socket error - ' + err;
+    });
+    socket.on('connect', function () {
+        console.log('CONNECTED');
+    });
+    socket.on('rand', function (data) {
+        console.log('RANDOM STREAM: ' + data.rand);
+    });
+    var sampleChannel = socket.subscribe('sample');
+    sampleChannel.on('subscribeFail', function (err) {
+        console.log('Failed to subscribe to the sample channel due to error: ' + err);
+    });
+    sampleChannel.watch(function (num) {
+        console.log('Sample channel message:', num);
+    });
+</script>
+</body>
+</html>
