@@ -20,6 +20,15 @@ module.exports.run = function(worker) {
             });
         },1000);
 
+        socket.on('login', function (data, respond) {
+            if(data.name && data.room){
+                socket.setAuthToken(data);
+                respond(null,'登入成功~！');
+            }else{
+                respond('error','登录昵称或房间不能为空！')
+            }
+        });
+
         socket.on('sampleClientEvent', function (data) {
             count++;
             console.log('Handled sampleClientEvent', data);
@@ -36,6 +45,7 @@ module.exports.run = function(worker) {
         });
 
         socket.on('disconnect', function (data) {
+            socket.removeAuthToken();
             console.log("Client " + socket.id + " socket has disconnected!");
         });
 

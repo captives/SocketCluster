@@ -1,28 +1,17 @@
-var express = require('express');
-var path = require("path");
-var http = require('http');
-var socketClusterServer = require('socketcluster-server');
-var app = express();
-app.use(express.static(path.join(__dirname, 'public')));
-var httpServer = http.createServer(app);
+var argv = require('minimist')(process.argv.slice(2));
+var SocketCluster = require("socketcluster").SocketCluster;
+var cpus = require('os').cpus();
 
-var scServer = socketClusterServer.attach(httpServer);
-console.log("listen port:80",process.pid);
-scServer.on('connection', function (ws) {
-    console.log(ws.id);
-    ws.on("message",function(message){
-        console.log("message",ws.id,message);
-       // ws.send(message);
-    });
-
-    ws.on("close",function(){
-        console.log("---- close ----");
-    });
-
-    ws.on("error",function(e){
-        console.log("---- error ----",e);
-    });
-    // ... Handle new socket connections here
+var socketCluster = new SocketCluster({
+    brokers: Number(argv.b) || 1,
+    workers: Number(argv.w) || 2,
+    port: Number(argv.p) || 80,
+    appName: argv.n || 'example',
+    logLevel:1,
+    path:'/socket',
+    workerController: __dirname + '/worker.js',
+    brokerController: __dirname + '/broker.js',
+    crashWorkerOnError: argv['auto-reboot'] != false,
+    socketChannelLimit: 1000,
+    rebootWorkerOnCrash: false
 });
-
-httpServer.listen(80);

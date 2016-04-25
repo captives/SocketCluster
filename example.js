@@ -23,6 +23,6 @@ function colorText (message, color) {
 //console.log(colorText("[body]","pink"));
 //console.log(colorText("[body]","cyan"));
 //console.log(colorText("[body]","gray"));
-for (var i=30; i<50;i++){
-    console.log("\u001b[0;"+i+"m[body "+i+"]\u001b[0m");
-}
+//for (var i=30; i<50;i++){
+//    console.log("\u001b[0;"+i+"m[body "+i+"]\u001b[0m");
+//}

@@ -2,220 +2,95 @@
 <html>
 <head lang="en">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1″ user-scalable=no">
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0;" name="viewport" />
     <title>SocketCluster Client</title>
     <link rel="stylesheet" href="css/bootstrap.min.css"/>
     <style>
-        h2,h3{
+        h2, h3,h4 {
             color: #FFFFFF;
         }
     </style>
-    <script src="js/jquery.min.js"></script>
-    <script src="js/bootstrap.min.js"></script>
-    <script type="text/javascript" src="js/socketcluster.js"></script>
+    <script src="js/libs/jquery.min.js"></script>
+    <script src="js/libs/bootstrap.min.js"></script>
+    <script src="js/libs/socketcluster.js"></script>
 </head>
 <body>
 <nav class="navbar navbar-default">
     <div class="container-fluid">
         <div class="navbar-header">
-            <h2>SocketCluster </h2>
+            <a class="navbar-brand" href="/">SocketCluster <small id="pid"></small></a>
         </div>
+
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
             <ul class="nav navbar-nav navbar-right">
-                <li><h3><span id="sp1"></span></h3></li>
-                <li><h3><span id="sp2"></span></h3></li>
+                <li><h3><small><span id="time"></span></small></h3></li>
             </ul>
         </div>
     </div>
-
 </nav>
-
-<div class="container">
+<div class="container-fluid">
     <div class="row">
-        <div class="col-md-4 form-group has-error">
-            <label class="control-label"  for="inputError">订阅通道</label>
-            <input class="form-control"  type="text" id="inputError">
-        </div>
+        <div class="col-md-4">
+            <form class="form-horizontal">
+                <fieldset>
+                    <div class="form-group">
+                        <label for="inputName" class="col-lg-2 control-label">NAME</label>
+                        <div class="col-lg-10">
+                            <input type="text" class="form-control" id="inputName" placeholder="请输入昵称">
+                        </div>
+                    </div>
 
-        <div class="col-md-6 form-group has-warning">
-            <label class="control-label"  for="inputWarning">消息</label>
-            <input class="form-control"  type="text" id="inputWarning">
-        </div>
-    </div>
+                    <div class="form-group">
+                        <div class="col-lg-10 col-lg-offset-6">
+                            <button id="connBtn" type="button" class="col-md-5 btn btn-info">登入系统</button>
+                            <button id="outBtn" type="button" class="col-md-5 btn btn-danger">登出系统</button>
+                        </div>
+                    </div>
+                    <br/>
+                    <br/>
+                    <br/>
+                    <br/>
+                    <br/>
+                    <!--<legend>ENTER ROOM</legend>-->
+                    <div class="room form-group">
+                        <label for="inputRoom" class="col-lg-2 control-label">ROOM</label>
+                        <div class="col-lg-10">
+                            <input type="text" class="form-control" id="inputRoom" placeholder="请输入房间号">
+                        </div>
+                    </div>
 
-    <div class="row">
-        <div class="col-md-6">
-            <a id="addBtn" href="#" class="btn btn-danger">添加订阅</a>
-            <a id="chatBtn" href="#" class="btn btn-success">发送消息</a>
-            <a id="testBtn" href="#" class="btn btn-info">测试订阅</a>
-            <a id="closeBtn" href="#" class="btn btn-warning">断开连接</a>
+                    <div class="room form-group">
+                        <div class="col-lg-10 col-lg-offset-6">
+                            <button id="subBtn" type="button" class="col-md-5 btn btn-success"> Login </button>
+                            <span class="col-md-2"></span>
+                            <button id="cancelBtn" type="button" class="col-md-5 btn btn-warning"> Logout </button>
+                        </div>
+                    </div>
+                </fieldset>
+            </form>
         </div>
-     </div>
-
-    <div class="panel panel-info">
-        <div class="panel-heading">
-            <h3 class="panel-title">Message</h3>
-        </div>
-        <div id="msgList" class="panel-body">
-                <ol></ol>
+        <!--聊天区域--->
+        <div class="chat col-md-8">
+            <div class="form-group has-success">
+                <div class="input-group">
+                    <input id="inputText" type="text" class="form-control">
+                    <span class="input-group-btn">
+                        <button id="sendBtn" class="btn btn-success" type="button">发送</button>
+                        <button id="broBtn" type="submit" class="btn btn-info">群发</button>
+                    </span>
+                </div>
+            </div>
+            <div class="panel panel-info">
+                <div class="panel-heading">
+                    <h3 class="panel-title">MESSAGE</h3>
+                </div>
+                <div id="msgList" class="panel-body">
+                    <ol></ol>
+                </div>
+            </div>
         </div>
     </div>
 </div>
-
-<script type="text/javascript">
-    function addMessage(text){
-        var li = document.createElement("li");
-        li.innerText = text;
-        document.querySelector("#msgList").appendChild(li);
-    }
-    var socket = null;
-    var isAuthenticated = false;
-    window.onload = function (e) {
-        var options = {
-            protocol: 'http',
-            hostname: '192.168.10.31',
-            port: 3000
-        };
-
-        socket = socketCluster.connect();
-        socket.on('error', function (err) {
-            throw 'Socket error - ' + err;
-        });
-
-        socket.on('connect', function (status) {
-            isAuthenticated = status.isAuthenticated;
-            console.log("connect",status);
-            socket.emit("login",{room:1000,uid:111}, function (err, failure) {
-                var error = null;
-                if (err) {
-                    error = 'Failed to login due to error: ' + err;
-                    isAuthenticated = false;
-                } else if (failure) {
-                    error = failure;
-                    isAuthenticated = false;
-                } else {
-                    error = '';
-                    isAuthenticated = true;
-                }
-                console.log(error,isAuthenticated);
-            });
-            console.log('CONNECTED');
-        });
-
-        //连接中断
-        socket.on('connectAbort', function (data) {
-            console.log('------连接中断 connectAbort -------',data);
-        });
-
-        socket.on('raw', function () {
-            console.log('------ raw -------');
-        });
-
-        //踢出
-        socket.on('kickOut', function (data) {
-            console.log('------踢出 kickOut -------',data);
-        });
-
-        //认证
-        socket.on('authenticate', function (data) {
-            console.log('------认证 authenticate -------',data);
-        });
-
-        //认证状态更改
-        socket.on('authStateChange', function (data) {
-            console.log('------认证状态更改 authStateChange -------',data);
-        });
-
-        //移除认证
-        socket.on("removeAuthToken", function (data) {
-            isAuthenticated = false;
-            console.log('------移除认证 removeAuthToken -------',data);
-        });
-
-        //订阅
-        socket.on('subscribe', function (data) {
-            console.log('------订阅 subscribe -------',data);
-        });
-
-        //订阅失败
-        socket.on('subscribeFail', function (data) {
-            console.log('------订阅失败 subscribeFail -------',data);
-        });
-
-        //取消订阅
-        socket.on('unsubscribe', function (data) {
-            console.log('------取消订阅 unsubscribe -------',data);
-        });
-
-        //订阅状态改变
-        socket.on('subscribeStateChange', function (data) {
-            console.log('------订阅状态改变 subscribeStateChange -------',data);
-        });
-
-        //订阅请求
-        socket.on('subscribeRequest', function (data) {
-            console.log('------订阅请求 subscribeRequest -------',data);
-        });
-
-        //解除验证
-        socket.on('deauthenticate', function (data) {
-            console.log('------解除验证 deauthenticate -------',data);
-        });
-
-        //消息
-        socket.on('message', function (data) {
-           // console.log('------ message -------',data);
-        });
-
-        //断开
-        socket.on("disconnect", function () {
-            console.log(' --------- UNCONNECTED  -----------');
-        });
-
-        /*********************************************
-         *
-         * 自定义事件监听
-         *
-         *********************************************/
-
-        // Listen to an event called 'rand' from the server
-        socket.on('time', function (data) {
-            var date = new Date();
-            date.setTime = data.time;
-            document.querySelector("#sp1").innerText = date.toLocaleDateString() + date.toLocaleTimeString();
-        });
-
-        socket.on("success", function (data) {
-            document.querySelector("#sp2").innerText = "进程ID:" + data.pid;
-        });
-    };
-
-    document.querySelector("#addBtn").onclick = function (e) {
-        var sampleChannel = socket.subscribe(document.querySelector("#inputError").value);
-        sampleChannel.on('subscribeFail', function (err) {
-            console.log('Failed to subscribe to the sample channel due to error: ' + err);
-        });
-
-        sampleChannel.watch(function (num) {
-            addMessage(num);
-            console.log('Sample channel message:', num);
-        });
-    };
-
-    document.querySelector("#chatBtn").onclick = function (e) {
-        socket.emit("chat",{
-            name:document.querySelector("#inputError").value,
-            text:document.querySelector("#inputWarning").value
-        });
-    };
-
-    document.querySelector("#testBtn").onclick = function (e) {
-        socket.emit("sampleClientEvent",{rand:Math.random()});
-    };
-
-    document.querySelector("#closeBtn").onclick = function (e) {
-        socket.disconnect();
-    }
-</script>
 </body>
+<script src="js/app.js"></script>
 </html>
