@@ -1,9 +1,23 @@
 var isAuthenticated = false;
+var Alert = {};
+Alert.show = function (text) {
+  alert(text);
+};
+
+console.log = function () {
+    var arr = Array.prototype.slice.call(arguments);;
+    addMessage(arr.join(' '));
+};
+
 function addMessage(text){
     var li = document.createElement("li");
     li.innerText = text;
     $('#msgList').append(li);
 }
+
+$('#clearBtn').on('click', function () {
+   $('#msgList').empty();
+});
 
 window.onload = function () {
     $('#outBtn').hide();
@@ -13,8 +27,6 @@ window.onload = function () {
 
 $('#connBtn').click(function (e) {
     var socket = null;
-    var sampleChannel = null;
-
     var options = {
         protocol: 'http',
         hostname: '192.168.10.31',
@@ -48,14 +60,14 @@ $('#connBtn').click(function (e) {
                 error = '';
                 isAuthenticated = true;
             }
-            console.log(error,isAuthenticated);
+            console.log(error,'认证通过',isAuthenticated);
         });
         console.log('CONNECTED', isAuthenticated);
     });
 
     //连接中断
-    socket.on('connectAbort', function (data) {
-        console.log('------连接中断 connectAbort -------',data);
+    socket.on('connectAbort', function (code) {
+        console.log('------连接中断 connectAbort -------',code);
     });
 
     socket.on('raw', function () {
@@ -83,10 +95,9 @@ $('#connBtn').click(function (e) {
         console.log('------移除认证 removeAuthToken -------',data);
     });
 
-    //订阅
-    socket.on('subscribe', function (data) {
-        $('.chat').show();
-        console.log('------订阅 subscribe -------',data);
+    //订阅请求-2
+    socket.on('subscribeRequest', function (name) {
+        console.log('------订阅请求 subscribeRequest -------',name);
     });
 
     //订阅失败
@@ -94,20 +105,22 @@ $('#connBtn').click(function (e) {
         console.log('------订阅失败 subscribeFail -------',data);
     });
 
-    //取消订阅
-    socket.on('unsubscribe', function (data) {
-        $('.chat').hide();
-        console.log('------取消订阅 unsubscribe -------',data);
-    });
-
     //订阅状态改变
     socket.on('subscribeStateChange', function (data) {
         console.log('------订阅状态改变 subscribeStateChange -------',data);
     });
 
-    //订阅请求
-    socket.on('subscribeRequest', function (data) {
-        console.log('------订阅请求 subscribeRequest -------',data);
+    //订阅
+    socket.on('subscribe', function (data) {
+        $('.chat').show();
+        console.log('------订阅 subscribe -------',data);
+    });
+
+    //取消订阅
+    socket.on('unsubscribe', function (data) {
+        watchChannel(false,name);
+        $('.chat').hide();
+        console.log('------取消订阅 unsubscribe -------',data);
     });
 
     //解除验证
@@ -117,7 +130,7 @@ $('#connBtn').click(function (e) {
 
     //消息
     socket.on('message', function (data) {
-        // console.log('------ message -------',data);
+        console.log('------ message -------',data);
     });
 
     //断开
@@ -132,11 +145,16 @@ $('#connBtn').click(function (e) {
      * 自定义事件监听
      *
      *********************************************/
-        // Listen to an event called 'rand' from the server
+    socket.on('logout', function (data) {
+        alert(data.text);
+    });
+
+    // Listen to an event called 'rand' from the server
     socket.on('time', function (data) {
         var date = new Date();
         date.setTime = data.time;
         $('#time').html(date.toLocaleDateString() + date.toLocaleTimeString());
+        $('#pid').html("client="+data.client);
     });
 
     //登录成功
@@ -146,7 +164,7 @@ $('#connBtn').click(function (e) {
 
     //群发消息,可跨越组
     $('#broBtn').on('click', function (e) {
-        socket.emit("sampleClientEvent",{text:$('#inputText').val()});
+        socket.emit("broadcast",{text:$('#inputText').val()});
     });
 
     //发送聊天信息
@@ -159,8 +177,13 @@ $('#connBtn').click(function (e) {
 
 
     //退出指定房间
-    $('#cancelBtn').on('click', function (e) {
-        socket.unsubscribe($('#inputRoom').val());
+    $('#unsubBtn').on('click', function (e) {
+        var name = $('#inputRoom').val();
+        if(socket.isSubscribed(name)){
+            watchChannel(false,name);
+        }else{
+            Alert.show("无效的通道信息名称,已取消退订！");
+        }
     });
 
     //退出系统
@@ -170,23 +193,68 @@ $('#connBtn').click(function (e) {
 
     //进入指定房间
     $('#subBtn').on('click', function (e) {
-        sampleChannel = socket.subscribe($('#inputRoom').val());
-        sampleChannel.on('subscribe', function (data) {
-            console.log('channel # subscribe',data);
+        var name = $('#inputRoom').val();
+        if(name == null && name== ""){
+            Alert.show('订阅名称不能为空');
+        }else if(socket.isSubscribed(name)){
+            Alert.show('不能重复订阅' + name + "通道！");
+        }else{
+            watchChannel(true, name);
+        }
+    });
+
+    var channel = null;
+    function watchChannel(monitor,name){
+        function out(text) {
+            console.log(name,'channel message:', text);
+        }
+
+        if(monitor){
+            channel = socket.subscribe(name);
+        }else{
+            socket.unsubscribe(name);
+        }
+
+        channel.on('subscribe', function (name) {
+            channel.watch(out);
+            console.log('channel # subscribe',name);
         });
-        sampleChannel.on('subscribeFail', function (err) {
+
+        channel.on('subscribeFail', function (err) {
             console.log('Failed to subscribe to the sample channel due to error: ' + err);
         });
-        sampleChannel.on('unsubscribe', function (data) {
-            console.log('channel # subscribe',data);
-        });
 
-        sampleChannel.watch(function (num) {
-            addMessage(num);
-            console.log('Sample channel message:', num);
+        channel.on('unsubscribe', function (data) {
+            console.log('channel # unsubscribe',data);
+            channel.unwatch(out);
         });
-    });
+    }
 });
 
+function DataChannel(){
+    this.name = "example";
+    var channel = this.channel = null;
 
+    channel.on('subscribe', function (name) {
+        console.log('channel # subscribe',name);
+    });
 
+    channel.on('subscribeFail', function (err) {
+        console.log('Failed to subscribe to the sample channel due to error: ' + err);
+    });
+
+    channel.on('unsubscribe', function (data) {
+        console.log('channel # unsubscribe',data);
+    });
+}
+
+DataChannel.prototype.subscribe = function (scSocket, name) {
+    this.channel = scSocket.subscribe(name);
+    this.channel.watch(function (text) {
+        console.log(name,'channel message:', text);
+    });
+};
+DataChannel.prototype.unsubscribe = function (scSocket, name) {
+    this.channel.unwatch(name);
+    this.channel = scSocket.unsubscribe(name);
+};

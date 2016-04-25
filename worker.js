@@ -1,42 +1,46 @@
 var express = require('express');
 var serveStatic = require('serve-static');
 var path = require('path');
+var AccessControl = require('./sc_module/access-control.js');
+var Auth = require('./sc_module/authentication.js');
+
 module.exports.run = function(worker) {
     console.log(" >> Worker PID:", process.pid);
     var httpServer = worker.httpServer;
     var scServer = worker.scServer;
-
+    AccessControl.attach(scServer);
     var app = express();
     app.use(serveStatic(path.resolve(__dirname, 'public')));
     httpServer.on('request', app);
 
+    //实例通道数名称集合
+    var channels = [];
     var count = 0;
     //连接
     scServer.on('connection', function (socket) {
+        Auth.attach(socket);//身份验证的中间件
+
         console.log("client " + socket.id + " has connected # pid=", process.pid);
         setInterval(function () {
             socket.emit('time',{
-                time:Date.now()
+                time:Date.now(),
+                client:Object.keys(scServer.clients).length,
             });
         },1000);
 
-        socket.on('login', function (data, respond) {
-            if(data.name && data.room){
-                socket.setAuthToken(data);
-                respond(null,'登入成功~！');
-            }else{
-                respond('error','登录昵称或房间不能为空！')
+        socket.emit('success',{pid:process.pid});
+        //接受广播消息,发送所有聊天通道
+        socket.on('broadcast', function (data) {
+            count++;
+            console.log('Handled sampleClientEvent', data);
+            for(var i in channels){
+                console.log(channels[i]);
+                scServer.exchange.publish(channels[i], data.text);
             }
         });
 
-        socket.on('sampleClientEvent', function (data) {
-            count++;
-            console.log('Handled sampleClientEvent', data);
-            scServer.exchange.publish('sample', count);
-        });
-
+        //私聊
         socket.on('chat', function (data) {
-            console.log('chant',JSON.stringify(data));
             scServer.exchange.publish(data.name, data.text);
         });
 
@@ -45,18 +49,25 @@ module.exports.run = function(worker) {
         });
 
         socket.on('disconnect', function (data) {
-            socket.removeAuthToken();
+            socket.deauthenticate();//从客户端销毁token
             console.log("Client " + socket.id + " socket has disconnected!");
         });
 
         //订阅
-        socket.on('subscribe', function (data) {
-            console.log('------ socket # subscribe -------',data);
+        socket.on('subscribe', function (name) {
+            if(channels.indexOf(name) == -1){
+                channels.push(name);
+            }
+            console.log('------ socket # subscribe -------',name);
         });
 
         //取消订阅
-        socket.on('unsubscribe', function (data) {
-            console.log('------ socket # unsubscribe -------',data);
+        socket.on('unsubscribe', function (name) {
+            var i = channels.indexOf(name);
+            if(i != -1){
+                channels.splice(i, 1);
+            }
+            console.log('------ socket # unsubscribe -------',name);
         });
 
         //失败验证
@@ -73,25 +84,5 @@ module.exports.run = function(worker) {
         socket.on('error', function (err) {
             console.error(err);
         });
-    });
-
-    //错误
-    scServer.on('error', function (err) {
-        console.log('------ scServer # error -------',err);
-    });
-
-    //通知
-    scServer.on('notice', function () {
-        console.log('------ scServer # notice -------');
-    });
-
-    //握手
-    scServer.on('handshake', function () {
-        console.log('------ scServer # handshake -------');
-    });
-
-    //认证失败
-    scServer.on('badSocketAuthToken', function () {
-        console.log('------ scServer # badSocketAuthToken -------');
     });
 };

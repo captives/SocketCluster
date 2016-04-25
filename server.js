@@ -4,7 +4,7 @@ var cpus = require('os').cpus();
 
 var socketCluster = new SocketCluster({
     brokers: Number(argv.b) || 1,
-    workers: Number(argv.w) || 2,
+    workers: Number(argv.w) || cpus.length,
     port: Number(argv.p) || 80,
     appName: argv.n || 'example',
     logLevel:1,
