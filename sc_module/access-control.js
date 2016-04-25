@@ -2,7 +2,7 @@ module.exports.attach = function (scServer) {
     //握手
     scServer.addMiddleware(scServer.MIDDLEWARE_HANDSHAKE, function (req, next) {
         console.log('middleware_handshake', req.remoteAddress,req.headers);
-        if(req.headers.host == "192.168.10.31"){
+        if(req.headers.host == "192.168.10.131"){
             console.log("拒绝连接", process.pid);
             req.socket.emit('logout',{text:"黑名单用户,不能登录"});
         }else{

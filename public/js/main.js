@@ -12,7 +12,7 @@ console.log = function () {
 function addMessage(text){
     var li = document.createElement("li");
     li.innerText = text;
-    $('#msgList').append(li);
+    $('#msgList > ul').append(li);
 }
 
 $('#clearBtn').on('click', function () {
@@ -130,7 +130,9 @@ $('#connBtn').click(function (e) {
 
     //消息
     socket.on('message', function (data) {
-        console.log('------ message -------',data);
+        if($('#checkBox').is(':checked')){
+            console.log('------ message -------',data);
+        }
     });
 
     //断开
