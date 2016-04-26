@@ -3,70 +3,90 @@ var serveStatic = require('serve-static');
 var path = require('path');
 var AccessControl = require('./sc_module/access-control.js');
 var Auth = require('./sc_module/authentication.js');
+var Router = require('./sc_module/Router.js');
 
 module.exports.run = function(worker) {
     console.log(" >> Worker PID:", process.pid);
     var httpServer = worker.httpServer;
     var scServer = worker.scServer;
     AccessControl.attach(scServer);
+
     var app = express();
+    app.use(Router.attach(express));
     app.use(serveStatic(path.resolve(__dirname, 'public')));
+    app.use(serveStatic(path.resolve(__dirname, 'node_modules/socketcluster-client')));
     httpServer.on('request', app);
 
-    //实例通道数名称集合
-    var channels = [];
-    var count = 0;
     //连接
     scServer.on('connection', function (socket) {
         Auth.attach(socket);//身份验证的中间件
+        scServer.exchange.publish('socketClient',{
+            event:'addClient',
+            data:{
+                client:socket.id,
+                address:socket.remoteAddress
+            }
+        });
 
+        console.log("服务器socket",scServer.clientsCount,Object.keys(scServer.clients).length);
         console.log("client " + socket.id + " has connected # pid=", process.pid);
-        setInterval(function () {
+        var intervalId = setInterval(function () {
             socket.emit('time',{
                 time:Date.now(),
                 client:Object.keys(scServer.clients).length,
             });
         },1000);
 
-        socket.emit('success',{pid:process.pid});
         //接受广播消息,发送所有聊天通道
         socket.on('broadcast', function (data) {
-            count++;
-            console.log('Handled sampleClientEvent', data);
-            for(var i in channels){
-                console.log(channels[i]);
-                scServer.exchange.publish(channels[i], data.text);
-            }
+            console.log('broadcast', data);
         });
 
         //私聊
         socket.on('chat', function (data) {
+            console.log("当前socket订阅的通道数组", socket.subscriptions());
+            console.log("scServer.exchange",scServer.exchange.subscriptions());
             scServer.exchange.publish(data.name, data.text);
         });
 
+        /***************************************************************************
+        *
+        * 系统事件
+        *
+        ****************************************************************************/
         socket.on('raw', function (data) {
             console.log('------ socket # raw -------',data);
         });
 
         socket.on('disconnect', function (data) {
-            socket.deauthenticate();//从客户端销毁token
+            scServer.exchange.publish('socketClient',{
+                event:'removeClient',
+                data:{
+                    client:socket.id,
+                    address:socket.remoteAddress
+                }
+            });
+            clearInterval(intervalId);
             console.log("Client " + socket.id + " socket has disconnected!");
         });
 
         //订阅
         socket.on('subscribe', function (name) {
-            if(channels.indexOf(name) == -1){
-                channels.push(name);
-            }
+            scServer.exchange.publish('remoteSubscribe',{
+                client:socket.id,
+                address:socket.remoteAddress,
+                names:socket.subscriptions()    //scServer.exchange.subscriptions()
+            });
             console.log('------ socket # subscribe -------',name);
         });
 
         //取消订阅
         socket.on('unsubscribe', function (name) {
-            var i = channels.indexOf(name);
-            if(i != -1){
-                channels.splice(i, 1);
-            }
+            scServer.exchange.publish('remoteSubscribe',{
+                client:socket.id,
+                address:socket.remoteAddress,
+                names:socket.subscriptions()    //scServer.exchange.subscriptions()
+            });
             console.log('------ socket # unsubscribe -------',name);
         });
 

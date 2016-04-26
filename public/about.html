@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0;" name="viewport" />
+    <title>SocketCluster Client list</title>
+    <link rel="stylesheet" href="css/bootstrap.min.css"/>
+    <style>
+        h2, h3,h4 {
+            color: #FFFFFF;
+        }
+    </style>
+    <script src="js/libs/jquery.min.js"></script>
+    <script src="js/libs/bootstrap.min.js"></script>
+    <script src="js/libs/socketcluster.js"></script>
+</head>
+<body>
+<nav class="navbar navbar-default">
+    <div class="container-fluid">
+        <div class="navbar-header">
+            <a class="navbar-brand" href="/">SocketCluster <small id="pid"></small><small id="num"></small></a>
+        </div>
+
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <li><h3><small><span id="time"></span></small></h3></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+<div class="container-fluid">
+    <table id="clientTable" class="table table-striped table-hover ">
+        <thead>
+            <tr  class="info">
+                <th>SocketID</th>
+                <th>Address</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <table id="subTable" class="table table-striped table-hover ">
+        <thead>
+            <tr class="info">
+                <th>Socket ID</th>
+                <th>Address</th>
+                <th>Names</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+</div>
+<script>
+    $(document).ready(function () {
+        var options = {
+            protocol: 'http',
+            hostname: '192.168.10.31',
+            port: 80,
+            path:'/socket'
+        };
+        var socket = socketCluster.connect(options);
+        socket.on('connect', function (status) {
+            console.log("--------------------");
+            var clientChannes = socket.subscribe("socketClient");
+            var subChannes = socket.subscribe("remoteSubscribe");
+
+            clientChannes.watch(watchClient);
+            clientChannes.on('subscribe', function (data) {
+                console.log('clientChannes # subscribe', data);
+            });
+
+            clientChannes.on('unsubscribe', function (data) {
+                console.log('clientChannes # unsubscribe', data);
+            });
+
+            subChannes.watch(watchSubscribe);
+            clientChannes.on('subscribe', function (data) {
+                console.log('subChannes # subscribe', data);
+            });
+
+            clientChannes.on('unsubscribe', function (data) {
+                console.log('subChannes # unsubscribe', data);
+            });
+        });
+
+        function watchClient(data){
+            console.log("watchClient",data);
+            var result = data.data;
+            if(data.event == "addClient"){
+                var tr = document.createElement("tr");
+                tr.setAttribute('id',"uid" + result.client);
+                var td1 = document.createElement("td");
+                td1.innerText = result.client;
+
+                var td2 = document.createElement("td");
+                td2.innerText = result.address;
+                tr.appendChild(td1);
+                tr.appendChild(td2);
+                $('#clientTable > tbody').append(tr);
+            }else if(data.event == "removeClient"){
+                $("#uid" + result.client).remove();
+            }
+        };
+
+        function watchSubscribe(data){
+            console.log("watchSubscribe",data);
+            $("#sub" + data.client).remove();
+            var tr = document.createElement("tr");
+            tr.setAttribute('id',"sub" + data.client);
+            var td1 = document.createElement("td");
+            td1.innerText = data.client;
+
+            var td2 = document.createElement("td");
+            td2.innerText = data.address;
+
+            var td3 = document.createElement("td");
+            td3.innerText = data.names;
+
+            tr.appendChild(td1);
+            tr.appendChild(td2);
+            tr.appendChild(td3);
+            $('#subTable > tbody').append(tr);
+        };
+
+        //断开
+        socket.on("disconnect", function () {
+            alert(" ------------ disconnect -----------------");
+        });
+
+        // Listen to an event called 'rand' from the server
+        socket.on('time', function (data) {
+            var date = new Date();
+            date.setTime = data.time;
+            $('#time').html(date.toLocaleDateString() + date.toLocaleTimeString());
+            $('#num').html("/client="+data.client);
+        });
+
+        //登录成功
+        socket.on("success", function (data) {
+            $('#pid').html("PID:" + data.pid);
+        });
+    });
+</script>
+</body>
+</html>

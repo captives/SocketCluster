@@ -16,7 +16,7 @@ function addMessage(text){
 }
 
 $('#clearBtn').on('click', function () {
-   $('#msgList').empty();
+   $('#msgList > ul').empty();
 });
 
 window.onload = function () {
@@ -30,12 +30,11 @@ $('#connBtn').click(function (e) {
     var options = {
         protocol: 'http',
         hostname: '192.168.10.31',
-        port: 80
+        port: 80,
+        path:'/socket'
     };
 
-    socket = socketCluster.connect({
-        path:'/socket'
-    });
+    socket = socketCluster.connect(options);
 
     socket.on('error', function (err) {
         throw 'Socket error - ' + err;
@@ -156,12 +155,12 @@ $('#connBtn').click(function (e) {
         var date = new Date();
         date.setTime = data.time;
         $('#time').html(date.toLocaleDateString() + date.toLocaleTimeString());
-        $('#pid').html("client="+data.client);
+        $('#num').html("/client="+data.client);
     });
 
     //登录成功
     socket.on("success", function (data) {
-        $('#pid').html("进程ID:" + data.pid);
+        $('#pid').html("PID:" + data.pid);
     });
 
     //群发消息,可跨越组
@@ -177,6 +176,12 @@ $('#connBtn').click(function (e) {
         });
     });
 
+    $('#sBtn').on('click', function (e) {
+        socket.publish('chat',{
+            name:$('#inputRoom').val(),
+            text:$('#inputText').val()
+        });
+    });
 
     //退出指定房间
     $('#unsubBtn').on('click', function (e) {
@@ -215,6 +220,7 @@ $('#connBtn').click(function (e) {
             channel = socket.subscribe(name);
         }else{
             socket.unsubscribe(name);
+            socket.destroyChannel(name);
         }
 
         channel.on('subscribe', function (name) {
