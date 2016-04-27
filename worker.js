@@ -14,7 +14,7 @@ module.exports.run = function(worker) {
     var app = express();
     app.use(Router.attach(express));
     app.use(serveStatic(path.resolve(__dirname, 'public')));
-    app.use(serveStatic(path.resolve(__dirname, 'node_modules/socketcluster-client')));
+    //app.use(serveStatic(path.resolve(__dirname, 'node_modules/socketcluster-client')));
     httpServer.on('request', app);
 
     //连接
@@ -47,6 +47,11 @@ module.exports.run = function(worker) {
             console.log("当前socket订阅的通道数组", socket.subscriptions());
             console.log("scServer.exchange",scServer.exchange.subscriptions());
             scServer.exchange.publish(data.name, data.text);
+        });
+
+        var channel = scServer.exchange.subscribe('simplex');
+        channel.watch(function (data) {
+            console.log('----------- simplex-----------',data);
         });
 
         /***************************************************************************

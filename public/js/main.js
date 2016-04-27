@@ -177,10 +177,14 @@ $('#connBtn').click(function (e) {
     });
 
     $('#sBtn').on('click', function (e) {
-        socket.publish('chat',{
-            name:$('#inputRoom').val(),
-            text:$('#inputText').val()
-        });
+        //向服务器发送消息
+        //socket.publish('simplex',{
+        //    name:$('#inputRoom').val(),
+        //    text:$('#inputText').val()
+        //});
+
+        //向指定通道发送消息
+        socket.publish($('#inputRoom').val(), $('#inputText').val());
     });
 
     //退出指定房间
@@ -210,37 +214,49 @@ $('#connBtn').click(function (e) {
         }
     });
 
-    var channel = null;
+
     function watchChannel(monitor,name){
         function out(text) {
             console.log(name,'channel message:', text);
         }
 
         if(monitor){
-            channel = socket.subscribe(name);
+            $('.chat').show();
+            if(!socket.isSubscribed(name)){
+                socket.subscribe(name);
+            }
+            socket.watch(name,out);
         }else{
             socket.unsubscribe(name);
-            socket.destroyChannel(name);
+            socket.unwatch(name,[out]);
         }
 
-        channel.on('subscribe', function (name) {
-            channel.watch(out);
-            console.log('channel # subscribe',name);
-        });
 
-        channel.on('subscribeFail', function (err) {
-            console.log('Failed to subscribe to the sample channel due to error: ' + err);
-        });
-
-        channel.on('unsubscribe', function (data) {
-            console.log('channel # unsubscribe',data);
-            channel.unwatch(out);
-        });
+        //if(monitor){
+        //    channel = socket.subscribe(name);
+        //}else{
+        //    socket.unsubscribe(name);
+        //    socket.destroyChannel(name);
+        //}
+        //
+        //channel.on('subscribe', function (name) {
+        //    channel.watch(out);
+        //    console.log('channel # subscribe',name);
+        //});
+        //
+        //channel.on('subscribeFail', function (err) {
+        //    console.log('Failed to subscribe to the sample channel due to error: ' + err);
+        //});
+        //
+        //channel.on('unsubscribe', function (data) {
+        //    console.log('channel # unsubscribe',data);
+        //    channel.unwatch(out);
+        //});
     }
 });
 
-function DataChannel(){
-    this.name = "example";
+function RoomChannel(_name){
+    this.name = _name || "example";
     var channel = this.channel = null;
 
     channel.on('subscribe', function (name) {
@@ -256,13 +272,22 @@ function DataChannel(){
     });
 }
 
-DataChannel.prototype.subscribe = function (scSocket, name) {
-    this.channel = scSocket.subscribe(name);
+RoomChannel.prototype.subscribe = function (scSocket) {
+    this.channel = scSocket.subscribe(this.name);
     this.channel.watch(function (text) {
         console.log(name,'channel message:', text);
     });
 };
-DataChannel.prototype.unsubscribe = function (scSocket, name) {
-    this.channel.unwatch(name);
-    this.channel = scSocket.unsubscribe(name);
+
+RoomChannel.prototype.watch = function (callback) {
+  this.channel.watch(this.name, callback);
+};
+
+RoomChannel.prototype.unwatch = function (callback) {
+  this.channel.watch(this.name, callback);
+};
+
+RoomChannel.prototype.unsubscribe = function (scSocket) {
+    this.channel.unwatch(this.name);
+    this.channel = scSocket.unsubscribe(this.name);
 };
