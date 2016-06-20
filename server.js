@@ -1,23 +1,36 @@
 var argv = require('minimist')(process.argv.slice(2));
 var SocketCluster = require("socketcluster").SocketCluster;
+var kms = require('./server/KurentoServer');
 var cpus = require('os').cpus();
+var fs = require("fs");
 
 var socketCluster = new SocketCluster({
-    brokers: Number(argv.b) || cpus.length /8,
-    workers: Number(argv.w) || cpus.length,
-    port: Number(argv.p) || 80,
+    brokers: Number(argv.b) || cpus.length,
+    workers: Number(argv.w) || 8 ,// cpus.length,
+    port: Number(argv.p) || 443,
     appName: argv.n || 'example',
     logLevel:1,
-    path:'/socket',
+    path:'/socketcluster',
+    wsEngine: 'wss',
     workerController: __dirname + '/worker.js',
     brokerController: __dirname + '/broker.js',
     crashWorkerOnError: argv['auto-reboot'] != false,
     socketChannelLimit: 1000,
-    rebootWorkerOnCrash: false
+    rebootWorkerOnCrash: false,
+    protocol:"https",
+    protocolOptions: {
+        key:  fs.readFileSync('keys/server.key'),
+        cert: fs.readFileSync('keys/server.crt'),
+        passphrase: 'passphase4privkey'
+    }
 });
 
-socketCluster.on('ready', function () {
-    console.log('socketCluster # ready');
+socketCluster.on('ready', function (data) {
+    var options = socketCluster.options;
+    console.log('SocketCluster startup success');
+    console.log("Open your browser to access %s://localhost:%s", options.protocol, options.port);
+    console.log("Client connection %s://localhost:%s%s",options.wsEngine, options.port, options.path);
+    // kms.init({ws_uri: "ws://121.43.108.40:8888/kurento"});
 });
 
 socketCluster.on('fail', function (data) {

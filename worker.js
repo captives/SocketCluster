@@ -4,19 +4,21 @@ var path = require('path');
 var AccessControl = require('./sc_module/access-control.js');
 var Auth = require('./sc_module/authentication.js');
 var Router = require('./sc_module/Router.js');
+var kms = require('./server/KurentoServer');
 
 module.exports.run = function(worker) {
     console.log(" >> Worker PID:", process.pid);
+    kms.init({ws_uri: "ws://121.43.108.40:8888/kurento"});
+
     var httpServer = worker.httpServer;
     var scServer = worker.scServer;
+    
     AccessControl.attach(scServer);
-
     var app = express();
     app.use(Router.attach(express));
     app.use(serveStatic(path.resolve(__dirname, 'public')));
     //app.use(serveStatic(path.resolve(__dirname, 'node_modules/socketcluster-client')));
     httpServer.on('request', app);
-
     //连接
     scServer.on('connection', function (socket) {
         Auth.attach(socket);//身份验证的中间件
@@ -53,11 +55,30 @@ module.exports.run = function(worker) {
         channel.watch(function (data) {
             console.log('----------- simplex-----------',data);
         });
-
         /***************************************************************************
-        *
+         * KMS, WebRTC 视频部分
+         ****************************************************************************/
+        function sendMessage(message){
+            socket.emit(message.id, message);
+        }
+        socket.on('presenter', function (message) {
+            kms.publish(socket.id, message.sdpOffer, sendMessage);
+        });
+        socket.on('viewer', function (message) {
+            kms.subscribe(socket.id, message.sdpOffer, sendMessage);
+        });
+        socket.on('stop', function () {
+            kms.stop(socket.id);
+        });
+        socket.on('onIceCandidate', function (message) {
+            kms.iceCandidate(socket.id, message.candidate);
+        });
+        socket.on("disconnect", function () {
+            kms.stop(socket.id);
+            console.log(socket.id,"-- disconnect");
+        });
+        /***************************************************************************
         * 系统事件
-        *
         ****************************************************************************/
         socket.on('raw', function (data) {
             console.log('------ socket # raw -------',data);

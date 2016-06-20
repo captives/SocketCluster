@@ -25,8 +25,6 @@ function WebServerUtils() {
         socket.on('time', function (data) {
             var date = new Date();
             date.setTime = data.time;
-            $('#time').html(date.toLocaleDateString() + date.toLocaleTimeString());
-            $('#pid').html("client="+data.client);
         });
 
         //登录成功

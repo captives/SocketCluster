@@ -27,11 +27,17 @@ window.onload = function () {
 
 $('#connBtn').click(function (e) {
     var socket = null;
+    // var options = {
+    //     protocol: 'https',
+    //     hostname: '192.168.10.31',
+    //     port: 443,
+    //     path:'/socket'
+    // };
     var options = {
-        protocol: 'http',
-        hostname: '192.168.10.31',
-        port: 80,
-        path:'/socket'
+        protocol: 'https',
+        hostname: 'localhost',
+        port: 443,
+        path:'/socketcluster'
     };
 
     socket = socketCluster.connect(options);
