@@ -2,6 +2,8 @@ function ServerClient(){
     this.startPresenter = presenter;
     this.startSubscriptionLive = viewer;
     this.stop = stop;
+
+
     var options = {
         protocol: 'https',
         hostname: 'localhost',
@@ -9,6 +11,7 @@ function ServerClient(){
         path:'/socketcluster'
     };
     var video = document.querySelector('#video');
+    var webRtc = new WebRTC();
     var webRtcPeer = null;
     var socket = socketCluster.connect(options);
     socket.on('connect', function (status) {
@@ -60,6 +63,13 @@ function ServerClient(){
         if(!webRtcPeer){
             var options = {
                 localVideo: video,
+                mediaConstraints:{
+                    video:{
+                        width:video.offsetWidth,
+                        height:video.offsetHeight,
+                        frameRate:30
+                    }
+                },
                 onicecandidate : onIceCandidate
             }
             webRtcPeer = kurentoUtils.WebRtcPeer.WebRtcPeerSendonly(options, function (err) {
@@ -91,8 +101,11 @@ function ServerClient(){
 
                 this.generateOffer(onOfferViewer);
             });
+
+            //webRtc.onMetedata(webRtcPeer.peerConnection);
         }
     }
+
     function onOfferViewer(error, offerSdp) {
         if (error) return onError(error);
 
@@ -104,6 +117,25 @@ function ServerClient(){
         sendMessage(message);
     }
 
+    // Dumping a stats variable as a string.
+    // might be named toString?
+    function dumpStats(results) {
+        var statsString = '';
+        Object.keys(results).forEach(function(key, index) {
+            var res = results[key];
+            statsString += '<h3>Report ';
+            statsString += index;
+            statsString += '</h3>\n';
+            statsString += 'time ' + res.timestamp + '<br>\n';
+            statsString += 'type ' + res.type + '<br>\n';
+            Object.keys(res).forEach(function(k) {
+                if (k !== 'timestamp' && k !== 'type') {
+                    statsString += k + ': ' + res[k] + '<br>\n';
+                }
+            });
+        });
+        return statsString;
+    }
     /***************************** webrtc ******************************/
     function onIceCandidate(candidate) {
         console.log('Local candidate' + JSON.stringify(candidate));
@@ -137,3 +169,29 @@ function ServerClient(){
     };
 
 }
+
+ServerClient.prototype.toggleVideoMute = function() {
+    var videoTracks = this.localStream_.getVideoTracks();
+    if (videoTracks.length === 0) {
+        trace("No local video available.");
+        return;
+    }
+    trace("Toggling video mute state.");
+    for (var i = 0;i < videoTracks.length;++i) {
+        videoTracks[i].enabled = !videoTracks[i].enabled;
+    }
+    trace("Video " + (videoTracks[0].enabled ? "unmuted." : "muted."));
+};
+
+ServerClient.prototype.toggleAudioMute = function() {
+    var audioTracks = this.localStream_.getAudioTracks();
+    if (audioTracks.length === 0) {
+        trace("No local audio available.");
+        return;
+    }
+    trace("Toggling audio mute state.");
+    for (var i = 0;i < audioTracks.length;++i) {
+        audioTracks[i].enabled = !audioTracks[i].enabled;
+    }
+    trace("Audio " + (audioTracks[0].enabled ? "unmuted." : "muted."));
+};

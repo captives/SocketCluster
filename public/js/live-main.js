@@ -14,5 +14,4 @@ $(document).ready(function () {
     $(window).resize();
     console = new Console();
     $('.console-box').hide();
-
 });

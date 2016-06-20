@@ -1,3 +1,4 @@
 #忽略的目录或文件
+.idea/
 node_modules/
 public/bower_components/
