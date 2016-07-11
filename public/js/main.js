@@ -27,12 +27,6 @@ window.onload = function () {
 
 $('#connBtn').click(function (e) {
     var socket = null;
-    // var options = {
-    //     protocol: 'https',
-    //     hostname: '192.168.10.31',
-    //     port: 443,
-    //     path:'/socket'
-    // };
     var options = {
         protocol: 'https',
         hostname: 'localhost',

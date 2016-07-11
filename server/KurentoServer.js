@@ -308,7 +308,6 @@ function getKurentoClient(callback) {
             return callback("Could not find media server at address" + argv.ws_uri
                 + ". Exiting with error " + error);
         }
-
         kurentoClient = _kurentoClient;
         callback(null, kurentoClient);
     });

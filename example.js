@@ -26,3 +26,9 @@ function colorText (message, color) {
 //for (var i=30; i<50;i++){
 //    console.log("\u001b[0;"+i+"m[body "+i+"]\u001b[0m");
 //}
+var a = {id:11,mes:'hhahah'};
+console.log(JSON.stringify(a));
+a.event = 'socket';
+console.log(JSON.stringify(a));
+delete a.event;
+console.log(JSON.stringify(a));

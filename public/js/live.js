@@ -14,6 +14,7 @@ function ServerClient(){
     var webRtc = new WebRTC();
     var webRtcPeer = null;
     var socket = socketCluster.connect(options);
+    this.socket = socket;
     socket.on('connect', function (status) {
         isAuthenticated = status.isAuthenticated;
         console.log('CONNECTED', isAuthenticated, Math.random());
@@ -194,4 +195,20 @@ ServerClient.prototype.toggleAudioMute = function() {
         audioTracks[i].enabled = !audioTracks[i].enabled;
     }
     trace("Audio " + (audioTracks[0].enabled ? "unmuted." : "muted."));
+};
+
+ServerClient.prototype.serverTime = function (callback) {
+    this.socket.on('time', function (message) {
+        if(typeof callback == 'function'){
+            callback(message);
+        }
+    });
+};
+
+ServerClient.prototype.serverMark = function (callback) {
+    this.socket.on('mark', function (message) {
+        if(typeof callback == 'function'){
+            callback(message);
+        }
+    });
 };

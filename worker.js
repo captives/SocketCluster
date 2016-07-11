@@ -4,23 +4,26 @@ var path = require('path');
 var AccessControl = require('./sc_module/access-control.js');
 var Auth = require('./sc_module/authentication.js');
 var Router = require('./sc_module/Router.js');
-var kms = require('./server/KurentoServer');
 
 module.exports.run = function(worker) {
-    console.log(" >> Worker PID:", process.pid);
-    kms.init({ws_uri: "ws://121.43.108.40:8888/kurento"});
+    console.log(" >> Worker PID:", process.pid, worker.id);
 
     var httpServer = worker.httpServer;
     var scServer = worker.scServer;
-    
+
     AccessControl.attach(scServer);
     var app = express();
     app.use(Router.attach(express));
     app.use(serveStatic(path.resolve(__dirname, 'public')));
     //app.use(serveStatic(path.resolve(__dirname, 'node_modules/socketcluster-client')));
     httpServer.on('request', app);
+
+    var socketList = {};
     //连接
     scServer.on('connection', function (socket) {
+        socketList[socket.id] = socket;
+        socket.emit('mark',{time:Date.now(),workerId:worker.id, socketId:socket.id, processId:process.pid});
+
         Auth.attach(socket);//身份验证的中间件
         scServer.exchange.publish('socketClient',{
             event:'addClient',
@@ -30,14 +33,21 @@ module.exports.run = function(worker) {
             }
         });
 
-        console.log("服务器socket",scServer.clientsCount,Object.keys(scServer.clients).length);
+        // worker.sendToMaster('发送给主进程消息');
+        worker.on('masterMessage',function (json) {
+            switch (json.event){
+                case 'time':
+                    socket.emit('time', json.data);
+                    break;
+                case 'socket':
+                    delete json.event;
+                    sendMessage(json);
+                    break;
+            }
+        });
+
+        console.log("服务器socket",socket.id,scServer.clientsCount,Object.keys(scServer.clients).length);
         console.log("client " + socket.id + " has connected # pid=", process.pid);
-        var intervalId = setInterval(function () {
-            socket.emit('time',{
-                time:Date.now(),
-                client:Object.keys(scServer.clients).length,
-            });
-        },1000);
 
         //接受广播消息,发送所有聊天通道
         socket.on('broadcast', function (data) {
@@ -59,22 +69,39 @@ module.exports.run = function(worker) {
          * KMS, WebRTC 视频部分
          ****************************************************************************/
         function sendMessage(message){
-            socket.emit(message.id, message);
+            var ws = socketList[message.wid];
+            if(ws){
+                ws.emit(message.id, message);
+            }
         }
+
+        function sendMaster(message){
+            message.wid = socket.id;
+            worker.sendToMaster(message);
+        }
+
         socket.on('presenter', function (message) {
-            kms.publish(socket.id, message.sdpOffer, sendMessage);
+            message.event = 'presenter';
+            sendMaster(message);
         });
         socket.on('viewer', function (message) {
-            kms.subscribe(socket.id, message.sdpOffer, sendMessage);
+            message.event = 'viewer';
+            sendMaster(message);
         });
         socket.on('stop', function () {
-            kms.stop(socket.id);
+            var message = {};
+            message.event = 'stop';
+            sendMaster(message);
         });
         socket.on('onIceCandidate', function (message) {
-            kms.iceCandidate(socket.id, message.candidate);
+            message.event = 'onIceCandidate';
+            sendMaster(message);
         });
         socket.on("disconnect", function () {
-            kms.stop(socket.id);
+            var message = {};
+            message.event = 'stop';
+            sendMaster(message);
+            delete socketList[socket.id];
             console.log(socket.id,"-- disconnect");
         });
         /***************************************************************************
@@ -92,7 +119,6 @@ module.exports.run = function(worker) {
                     address:socket.remoteAddress
                 }
             });
-            clearInterval(intervalId);
             console.log("Client " + socket.id + " socket has disconnected!");
         });
 

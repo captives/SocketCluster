@@ -4,9 +4,11 @@
     <meta charset="utf-8">
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport" />
 
-    <link rel="stylesheet" href="css/bootstrap.min.css"/>
     <!--<link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.min.css">-->
     <link rel="stylesheet" href="bower_components/demo-console/index.css">
+    <link rel="stylesheet" href="css/bootstrap.min.css"/>
+    <link rel="stylesheet" type="text/css" href="fonts/font-awesome-4.3.0/css/font-awesome.min.css" />
+    <link rel="stylesheet" type="text/css" href="fonts/vicons/vicons-font.css" />
     <link rel="stylesheet" href="css/common.css"/>
 
     <script src="bower_components/adapter.js/adapter.js"></script>
@@ -16,48 +18,74 @@
     <script src="bower_components/kurento-utils/js/kurento-utils.js"></script>
 
     <script src="js/libs/socketcluster.js"></script>
+    <script src="js/libs/TweenMax.min.js"></script>
     <title>订阅直播</title>
 </head>
 <body>
 <nav class="navbar navbar-default">
     <div class="container-fluid">
         <div class="navbar-header">
-            <a class="navbar-brand" href="/"> 直播中 <small id="pid"></small><small id="num"></small></a>
+            <a class="navbar-brand" href="/"> 直播中</a>
         </div>
 
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
             <ul class="nav navbar-nav navbar-right">
+                <li><h3><small><span id="time"></span></small></h3></li>
                 <li><a href="liveRelease.html" target="_blank">发布直播</a></li>
+                <li><button id="conBtn" class="btn btn-success btn-sm" style="margin: 15px 10px 10px 15px">调试</button></li>
             </ul>
         </div>
     </div>
 </nav>
 
 <div class="container wrapper">
-    <div class="row">
-        <div class="col-md-6 sidebar">
-            <div style="width: 100%; height: 320px; background: #4D4D4D">
-                <!--这里放个视频,比大屏幕还大的时候显示720*540的视频，大屏幕640*480; 中屏幕480*270，小的屏幕320*180-->
-                <video id="video" class="video" autoplay width="100%" height="100%" poster="img/webrtc.png"></video>
-
-            </div>
-            <!--这里放个在线列表-->
-            <div class="panel panel-primary control">
+    <div class="row wrapper-content">
+        <div class="sidebar col-sm-4">
+            <div class="panel panel-success video">
                 <div class="panel-heading">
                     <h3 class="panel-title">控制台</h3>
                 </div>
                 <div class="panel-body">
-                    Panel content
+                    <!--这里放个视频,比大屏幕还大的时候显示720*540的视频，大屏幕640*480; 中屏幕480*270，小的屏幕320*180-->
+                    <video id="video" autoplay width="100%" height="100%" poster="img/webrtc.png"></video>
+                </div>
+            </div>
+            <div class="panel panel-success control">
+                <div class="panel-heading">
+                    <h3 class="panel-title">控制台</h3>
+                </div>
+                <div class="panel-body">
+                    <ul></ul>
                 </div>
             </div>
         </div>
-        <!--这里放个聊天区域-->
-        <div class="col-md-5 panel panel-primary chat">
-            <div class="panel-heading">
-                <h3 class="panel-title">聊天</h3>
-            </div>
-            <div class="panel-body">
-                Panel content
+        <div class="main col-sm-8">
+            <div class="panel panel-success chat">
+                <div class="panel-heading">
+                    <h3 class="panel-title">聊天</h3>
+                </div>
+                <div class="panel-body">
+                    <div class="chat-messages">
+                        <ol class="chat-messages-list"></ol>
+                    </div>
+                    <div class="chat-input-bar">
+                        <div class="chat-info-container">
+
+                        </div>
+                        <div class="chat-effect-container">
+                            <div class="chat-effect-bar"></div>
+                        </div>
+                        <div class="chat-input-wrapper">
+                            <button class="chat-input-tool">
+                                <i class="icon icon-camera"></i>
+                            </button>
+                            <div class="chat-input" contenteditable></div>
+                            <button class="chat-send">
+                                <i class="fa fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -70,13 +98,35 @@
         <ul></ul>
     </div>
 </div>
+<script src="js/chat.js"></script>
 <script src="js/common.js"></script>
 <script src="js/live.js"></script>
 <script src="js/live-main.js"></script>
 <script>
     $(document).ready(function () {
+        var enterTime = 0;
         var serverClient = new ServerClient();
         serverClient.startSubscriptionLive();
+        serverClient.serverTime(function (data) {
+            var d = new Date();
+            d.time = data.time;
+            $('#time').text(d.toLocaleTimeString());
+            var str = formatTimes(Math.ceil((data.time - enterTime)/1000));
+            var parent = $('.control .panel-body');
+             parent.find('li[name="time"]').text('登入时长：' + str);
+             parent.find('li[name="ctime"]').text('当前时间：'+getFormatDate(data.time));
+        });
+
+        serverClient.serverMark(function (data) {
+            enterTime = data.time;
+            var parent = $('.control .panel-body').find('ul');
+            parent.append($('<li name="time">登入时长：00:00</li>'));
+            parent.append($('<li>登入时间：'+ getFormatDate(data.time) +'</li>'));
+            parent.append($('<li name="ctime">当前时间：00:00</li>'));
+            parent.append($('<li>线程ID：'+ data.processId +'</li>'));
+            parent.append($('<li>线程索引：'+ data.workerId +'</li>'));
+            parent.append($('<li>Socket标识：'+ data.socketId +'</li>'));
+        });
     });
 </script>
 </body>
