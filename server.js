@@ -32,6 +32,7 @@ socketCluster.on('ready', function (data) {
     // console.log('SocketCluster startup success',options);
     console.log("Open your browser to access %s://localhost:%s", options.protocol, options.port);
     console.log("Client connection %s://localhost:%s%s",options.wsEngine, options.port, options.path);
+    kms.init({ws_uri: "ws://192.168.10.10:8866/kurento"});
     var intervalId = setInterval(function () {
         var data = {
             event:'time',
