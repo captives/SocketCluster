@@ -32,19 +32,20 @@ socketCluster.on('ready', function (data) {
     // console.log('SocketCluster startup success',options);
     console.log("Open your browser to access %s://localhost:%s", options.protocol, options.port);
     console.log("Client connection %s://localhost:%s%s",options.wsEngine, options.port, options.path);
-    kms.init({ws_uri: "ws://192.168.10.10:8866/kurento"});
-    var intervalId = setInterval(function () {
-        var data = {
-            event:'time',
-            data:{
-                time:Date.now()
-            }
-        };
-        var workers = socketCluster.options.workers;
-        for(var id = 0; id < workers; id++){
-            socketCluster.sendToWorker(id, data);
-        }
-    },1000);
+    kms.init({ws_uri: "ws://121.43.108.40:8888/kurento"});
+    // var intervalId = setInterval(function () {
+    //     var data = {
+    //         event:'time',
+    //         data:{
+    //             time:Date.now()
+    //         }
+    //     };
+    //     //业务相关的事件处理
+    //     var workers = socketCluster.options.workers;
+    //     for(var id = 0; id < workers; id++){
+    //         socketCluster.sendToWorker(id, data);
+    //     }
+    // },1000);
 });
 
 socketCluster.on('fail', function (data) {
@@ -55,13 +56,9 @@ socketCluster.on('worker', function (data) {
     console.log('socketCluster # worker',data);
 });
 
-socketCluster.on('workerMessage', function (workerId, data) {
-    workerManager(workerId, data);
-    var workers = socketCluster.options.workers;
-    for(var id = 0; id < workers; id++){
-        socketCluster.sendToWorker(id, data);
-    }
-    console.log('socketCluster # workerMessage',workerId, JSON.stringify(data));
+socketCluster.on('workerMessage', function (workerId, json) {
+    //视频相关的事件处理
+    workerManager(workerId, json.event, json.wid, json.data);
 });
 
 socketCluster.on('brokerMessage', function (brokerId, data) {
@@ -72,32 +69,41 @@ socketCluster.on('brokerMessage', function (brokerId, data) {
     console.log('socketCluster # brokerMessage', brokerId, data);
 });
 
-function workerManager(workerId, json) {
-    if(json.event){
-        switch (json.event){
-            case 'presenter':
-                kms.publish(json.wid, json.sdpOffer, function (message) {
-                    message.event = 'socket';
-                    message.wid = json.wid;
-                    socketCluster.sendToWorker(workerId, message);
-                });
-                break;
-            case 'viewer':
-                kms.subscribe(json.wid, json.sdpOffer, function (message) {
-                    message.event = 'socket';
-                    message.wid = json.wid;
-                    socketCluster.sendToWorker(workerId, message);
-                });
-                break;
-            case 'onIceCandidate':
-                kms.iceCandidate(json.wid, json.candidate);
-                break;
-            case 'stop':
-                kms.stop(json.wid);
-                break;
-            default:
-                console.log('workerManager',workerId,JSON.stringify(json));
-                break;
-        }
+
+function workerManager(workerId, event, wid, data) {
+    //发送信息到指定的workerId
+    function sendWorker(event, workerId, wid, message){
+        socketCluster.sendToWorker(workerId, {event:event, wid:wid, data:message});
     }
+    //业务
+    switch (event){
+        case 'presenter':
+            kms.publish(wid, data.sdpOffer, function (message) {
+                sendWorker('info',workerId, wid, message);
+            });
+            break;
+        case 'viewer':
+            kms.subscribe(wid, data.sdpOffer, function (message) {
+                sendWorker('info', workerId, wid, message);
+            });
+            break;
+        case 'onIceCandidate':
+            kms.iceCandidate(wid, data.candidate);
+            break;
+        case 'stop':
+            kms.stop(wid);
+            break;
+        case 'info': //消息转发
+            //业务相关的事件处理
+            var workers = socketCluster.options.workers;
+            for(var id = 0; id < workers; id++){
+                sendWorker('info', id, wid, data);
+                console.log('socketCluster # workerMessage',workers,id, workerId, JSON.stringify(data));
+            }
+            break;
+        default:
+            console.log('workerManager',workerId, JSON.stringify(data));
+            break;
+    }
+
 };

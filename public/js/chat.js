@@ -35,26 +35,20 @@ $(document).ready(function(){
 	function addMessage(message,self){
 		var $messageContainer=$("<li/>")
 			.addClass('chat-message '+(self?'chat-message-self':'chat-message-friend'))
-			.appendTo($messagesList)
-		;
+			.appendTo($messagesList);
+
 		var $messageBubble=$("<div/>")
 			.addClass('chat-message-bubble')
-			.appendTo($messageContainer)
-		;
+			.appendTo($messageContainer);
+
 		$messageBubble.text(message);
 
 		var oldScroll=$messagesContainer.scrollTop();
 		$messagesContainer.scrollTop(9999999);
 		var newScroll=$messagesContainer.scrollTop();
-		var scrollDiff=newScroll-oldScroll;
-		TweenMax.fromTo(
-			$messagesList,0.4,{
-				y:scrollDiff
-			},{
-				y:0,
-				ease:Quint.easeOut
-			}
-		);
+
+		var scrollDiff = newScroll - oldScroll;
+		TweenMax.fromTo($messagesList,0.4,{y:scrollDiff},{y:0,ease:Quint.easeOut});
 
 		return {
 			$container:$messageContainer,
@@ -63,22 +57,23 @@ $(document).ready(function(){
 	}
 	//发送消息
 	function sendMessage(){
-		var message=$input.text();
+		var message = $input.text();
 		
 		if(message=="") return;
 		
-		lastMessage=message;
+		lastMessage = message;
 
-		var messageElements=addMessage(message,true)
-			,$messageContainer=messageElements.$container
-			,$messageBubble=messageElements.$bubble
-		;
+		serverClient.sendMessage(message);
+
+		var messageElements= addMessage(message,true);
+		var $messageContainer=messageElements.$container;
+		var $messageBubble=messageElements.$bubble;
 
 		var oldInputHeight=$(".chat-input-bar").height();
 		$input.text('');
 		updateChatHeight();
 		var newInputHeight=$(".chat-input-bar").height();
-		var inputHeightDiff=newInputHeight-oldInputHeight
+		var inputHeightDiff=newInputHeight-oldInputHeight;
 
 		var $messageEffect=$("<div/>")
 			.addClass('chat-message-effect')
@@ -96,7 +91,7 @@ $(document).ready(function(){
 		var pos={
 			x:messagePos.left-effectPos.left,
 			y:messagePos.top-effectPos.top
-		}
+		};
 
 		var $sendIcon=$sendButton.children("i");
 		TweenMax.to(
@@ -158,9 +153,7 @@ $(document).ready(function(){
 			);
 		}
 
-		effectYTransition=setEffectYTransition(pos.y,0.8,Sine.easeInOut);
-		
-		// effectYTransition.updateTo({y:800});
+		effectYTransition = setEffectYTransition(pos.y,0.8,Sine.easeInOut);
 
 		TweenMax.from(
 			$messageBubble,0.6,{
@@ -269,7 +262,7 @@ $(document).ready(function(){
 
 		var $info=$("<div/>")
 			.addClass("chat-info-typing")
-			.text("Your friend is typing...")
+			.text("对方正在输入...")
 			.css({
 				transform:"translate3d(0,30px,0)"
 			})
@@ -309,6 +302,10 @@ $(document).ready(function(){
 			}
 		});
 	}
+
+	serverClient.serverRevMessage(function (message) {
+		receiveMessage(JSON.stringify(message));
+	});
 
 	//响应消息
 	function receiveMessage(message){

@@ -4,7 +4,7 @@ var path = require('path');
 var AccessControl = require('./sc_module/access-control.js');
 var Auth = require('./sc_module/authentication.js');
 var Router = require('./sc_module/Router.js');
-
+var WebServer = require('./server/SocketClusterWebServer');
 module.exports.run = function(worker) {
     console.log(" >> Worker PID:", process.pid, worker.id);
 
@@ -18,13 +18,17 @@ module.exports.run = function(worker) {
     //app.use(serveStatic(path.resolve(__dirname, 'node_modules/socketcluster-client')));
     httpServer.on('request', app);
 
-    var socketList = {};
+    var webServer = new WebServer();
     //连接
     scServer.on('connection', function (socket) {
-        socketList[socket.id] = socket;
-        socket.emit('mark',{time:Date.now(),workerId:worker.id, socketId:socket.id, processId:process.pid});
-
         Auth.attach(socket);//身份验证的中间件
+        webServer.init(socket);
+
+        webServer.on('message',function (message) {
+            sendMaster(message.event, message.data);
+        });
+
+        socket.emit('mark',{time:Date.now(),workerId:worker.id, socketId:socket.id, processId:process.pid});
         scServer.exchange.publish('socketClient',{
             event:'addClient',
             data:{
@@ -33,18 +37,20 @@ module.exports.run = function(worker) {
             }
         });
 
-        // worker.sendToMaster('发送给主进程消息');
-        worker.on('masterMessage',function (json) {
+        function masterMessageHandler(json) {
+            console.log('masterMessage  --|--',socket.id, worker.id, process.pid, JSON.stringify(json));
             switch (json.event){
                 case 'time':
                     socket.emit('time', json.data);
                     break;
-                case 'socket':
-                    delete json.event;
-                    sendMessage(json);
+                case 'info'://发送消息管理类
+                    sendMessage(json.wid, json.data);
                     break;
             }
-        });
+        };
+        //监听主进程消息
+        worker.on('masterMessage',masterMessageHandler);
+
 
         console.log("服务器socket",socket.id,scServer.clientsCount,Object.keys(scServer.clients).length);
         console.log("client " + socket.id + " has connected # pid=", process.pid);
@@ -54,56 +60,26 @@ module.exports.run = function(worker) {
             console.log('broadcast', data);
         });
 
-        //私聊
-        socket.on('chat', function (data) {
-            console.log("当前socket订阅的通道数组", socket.subscriptions());
-            console.log("scServer.exchange",scServer.exchange.subscriptions());
-            scServer.exchange.publish(data.name, data.text);
-        });
-
         var channel = scServer.exchange.subscribe('simplex');
         channel.watch(function (data) {
             console.log('----------- simplex-----------',data);
         });
+
         /***************************************************************************
          * KMS, WebRTC 视频部分
          ****************************************************************************/
-        function sendMessage(message){
-            var ws = socketList[message.wid];
-            if(ws){
-                ws.emit(message.id, message);
-            }
+        // function sendMessage(wid, message){
+        //     var ws = socketList[wid];
+        //     if(ws){
+        //         ws.emit(message.id, message);
+        //     }
+        // }
+
+        //发送信息到主进程
+        function sendMaster(event, message){
+            worker.sendToMaster({event:event, wid:socket.id, data:message});
         }
 
-        function sendMaster(message){
-            message.wid = socket.id;
-            worker.sendToMaster(message);
-        }
-
-        socket.on('presenter', function (message) {
-            message.event = 'presenter';
-            sendMaster(message);
-        });
-        socket.on('viewer', function (message) {
-            message.event = 'viewer';
-            sendMaster(message);
-        });
-        socket.on('stop', function () {
-            var message = {};
-            message.event = 'stop';
-            sendMaster(message);
-        });
-        socket.on('onIceCandidate', function (message) {
-            message.event = 'onIceCandidate';
-            sendMaster(message);
-        });
-        socket.on("disconnect", function () {
-            var message = {};
-            message.event = 'stop';
-            sendMaster(message);
-            delete socketList[socket.id];
-            console.log(socket.id,"-- disconnect");
-        });
         /***************************************************************************
         * 系统事件
         ****************************************************************************/
@@ -112,6 +88,10 @@ module.exports.run = function(worker) {
         });
 
         socket.on('disconnect', function (data) {
+            //移除监听主进程消息
+            worker.off('masterMessage',masterMessageHandler);
+
+
             scServer.exchange.publish('socketClient',{
                 event:'removeClient',
                 data:{

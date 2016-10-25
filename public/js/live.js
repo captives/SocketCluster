@@ -3,7 +3,6 @@ function ServerClient(){
     this.startSubscriptionLive = viewer;
     this.stop = stop;
 
-
     var options = {
         protocol: 'https',
         hostname: 'localhost',
@@ -46,6 +45,10 @@ function ServerClient(){
 
     socket.on('iceCandidate',function (message) {
         webRtcPeer.addIceCandidate(message.candidate);
+    });
+
+    socket.on('chat',function(message){
+        
     });
 
     /***************************** 功能函数 ******************************/
@@ -118,8 +121,7 @@ function ServerClient(){
         sendMessage(message);
     }
 
-    // Dumping a stats variable as a string.
-    // might be named toString?
+    // Dumping a stats variable as a string.might be named toString?
     function dumpStats(results) {
         var statsString = '';
         Object.keys(results).forEach(function(key, index) {
@@ -137,6 +139,7 @@ function ServerClient(){
         });
         return statsString;
     }
+
     /***************************** webrtc ******************************/
     function onIceCandidate(candidate) {
         console.log('Local candidate' + JSON.stringify(candidate));
@@ -197,6 +200,7 @@ ServerClient.prototype.toggleAudioMute = function() {
     trace("Audio " + (audioTracks[0].enabled ? "unmuted." : "muted."));
 };
 
+//服务器时间
 ServerClient.prototype.serverTime = function (callback) {
     this.socket.on('time', function (message) {
         if(typeof callback == 'function'){
@@ -205,10 +209,27 @@ ServerClient.prototype.serverTime = function (callback) {
     });
 };
 
+//服务器信息
 ServerClient.prototype.serverMark = function (callback) {
     this.socket.on('mark', function (message) {
         if(typeof callback == 'function'){
             callback(message);
         }
     });
+};
+
+//服务器相应消息
+ServerClient.prototype.serverRevMessage = function (callback) {
+    this.socket.on('chat', function (message) {
+        if(typeof callback == 'function'){
+            callback(message.data);
+        }
+    });
+};
+
+ServerClient.prototype.sendMessage = function (text) {
+    var message = {
+      id:'chat', data:text
+    };
+    this.socket.emit(message.id, message);
 };

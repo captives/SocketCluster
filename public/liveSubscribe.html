@@ -103,9 +103,9 @@
 <script src="js/live.js"></script>
 <script src="js/live-main.js"></script>
 <script>
+    var serverClient = new ServerClient();
     $(document).ready(function () {
         var enterTime = 0;
-        var serverClient = new ServerClient();
         serverClient.startSubscriptionLive();
         serverClient.serverTime(function (data) {
             var d = new Date();
